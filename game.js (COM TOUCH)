@@ -1,0 +1,110 @@
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const TILE = 16;
+const WORLD_W = 200;
+const WORLD_H = 80;
+const GRAVITY = 0.4;
+
+
+let left = false, right = false, jump = false, action = false;
+
+const bind = (id, state) => {
+  const btn = document.getElementById(id);
+  btn.addEventListener("touchstart", e => { e.preventDefault(); window[state] = true; });
+  btn.addEventListener("touchend", e => { e.preventDefault(); window[state] = false; });
+};
+
+bind("left", "left");
+bind("right", "right");
+bind("jump", "jump");
+bind("action", "action");
+
+
+const BLOCKS = { air: 0, dirt: 1, stone: 2 };
+const COLORS = { 1: "#8b5a2b", 2: "#666" };
+
+
+let world = JSON.parse(localStorage.getItem("world")) || generateWorld();
+
+function generateWorld() {
+  let w = [];
+  for (let x = 0; x < WORLD_W; x++) {
+    w[x] = [];
+    let ground = 30 + Math.random() * 5;
+    for (let y = 0; y < WORLD_H; y++) {
+      w[x][y] = y > ground ? 0 : y > ground - 3 ? 1 : 2;
+    }
+  }
+  return w;
+}
+
+
+const player = {
+  x: 50 * TILE,
+  y: 0,
+  w: 12,
+  h: 28,
+  vx: 0,
+  vy: 0,
+  onGround: false
+};
+
+
+function update() {
+  player.vx = 0;
+  if (left) player.vx = -2;
+  if (right) player.vx = 2;
+  if (jump && player.onGround) {
+    player.vy = -8;
+    player.onGround = false;
+  }
+
+  player.vy += GRAVITY;
+  move(player);
+  draw();
+
+  requestAnimationFrame(update);
+}
+
+function move(p) {
+  p.x += p.vx;
+  p.y += p.vy;
+  p.onGround = false;
+
+  let tx = Math.floor(p.x / TILE);
+  let ty = Math.floor((p.y + p.h) / TILE);
+
+  if (world[tx] && world[tx][ty] && world[tx][ty] !== 0) {
+    p.y = ty * TILE - p.h;
+    p.vy = 0;
+    p.onGround = true;
+  }
+}
+
+
+let camX = 0, camY = 0;
+
+function draw() {
+  camX = player.x - canvas.width / 2;
+  camY = player.y - canvas.height / 2;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let x = 0; x < WORLD_W; x++) {
+    for (let y = 0; y < WORLD_H; y++) {
+      if (world[x][y] !== 0) {
+        ctx.fillStyle = COLORS[world[x][y]];
+        ctx.fillRect(x * TILE - camX, y * TILE - camY, TILE, TILE);
+      }
+    }
+  }
+
+  ctx.fillStyle = "#0f0";
+  ctx.fillRect(player.x - camX, player.y - camY, player.w, player.h);
+}
+
+update();
